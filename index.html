@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧠 AI Thought Visualization Tool</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #0a0a1a; color: #e0e0ff; min-height: 100vh; }
+header { background: linear-gradient(135deg, #1a1a3e, #0d0d2b); padding: 20px 40px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 15px; }
+header h1 { font-size: 1.8rem; background: linear-gradient(90deg, #7c3aed, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.tagline { color: #888; font-size: 0.9rem; }
+.container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
+.controls { background: #111128; border: 1px solid #2a2a5e; border-radius: 12px; padding: 20px; margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+.controls select { background: #1e1e4e; color: #e0e0ff; border: 1px solid #4a4a8e; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; }
+.btn-primary { background: linear-gradient(135deg, #7c3aed, #06b6d4); color: white; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(124,58,237,0.4); }
+.btn-secondary { background: #1e1e4e; color: #9ca3af; border: 1px solid #4a4a8e; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+.panel { background: #111128; border: 1px solid #2a2a5e; border-radius: 12px; padding: 20px; }
+.panel h2 { font-size: 1rem; color: #7c3aed; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+canvas { width: 100%; border-radius: 8px; display: block; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+.stat-card { background: #111128; border: 1px solid #2a2a5e; border-radius: 10px; padding: 15px; text-align: center; }
+.stat-card .value { font-size: 1.6rem; font-weight: 700; color: #06b6d4; }
+.stat-card .label { font-size: 0.75rem; color: #888; margin-top: 4px; }
+.layer-viz { display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 10px 0; }
+.layer { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.neuron-col { display: flex; flex-direction: column; gap: 4px; }
+.neuron { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s; cursor: pointer; }
+.connector { flex: 1; height: 2px; background: linear-gradient(90deg, rgba(124,58,237,0.3), rgba(6,182,212,0.3)); min-width: 20px; }
+.concept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 12px; }
+.concept-chip { padding: 8px 12px; border-radius: 20px; font-size: 0.75rem; text-align: center; cursor: pointer; border: 1px solid; }
+.prediction-bar { margin: 8px 0; }
+.bar-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 3px; }
+.bar-track { background: #1e1e4e; border-radius: 4px; height: 18px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; display: flex; align-items: center; padding-left: 8px; font-size: 0.7rem; color: white; }
+.log { background: #0a0a1a; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.78rem; max-height: 200px; overflow-y: auto; border: 1px solid #2a2a5e; }
+.log-entry { padding: 3px 0; border-bottom: 1px solid #1a1a3e; color: #8a8aaa; }
+.log-entry.active { color: #06b6d4; }
+.tab-bar { display: flex; gap: 5px; margin-bottom: 15px; }
+.tab { padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; background: #1e1e4e; color: #888; border: none; }
+.tab.active { background: #7c3aed; color: white; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.pulsing { animation: pulse 1s infinite; }
+</style>
+</head>
+<body>
+<header>
+<div>
+<h1>🧠 AI Thought Visualization Tool</h1>
+<p class="tagline">Visualize internal neural network activations in real-time</p>
+</div>
+</header>
+<div class="container">
+<div class="stats" id="stats">
+<div class="stat-card"><div class="value" id="stat-neurons">0</div><div class="label">Active Neurons</div></div>
+<div class="stat-card"><div class="value" id="stat-layers">0</div><div class="label">Hidden Layers</div></div>
+<div class="stat-card"><div class="value" id="stat-conf">0%</div><div class="label">Confidence</div></div>
+<div class="stat-card"><div class="value" id="stat-epoch">0</div><div class="label">Inference Steps</div></div>
+</div>
+<div class="controls">
+<div><label style="color:#9ca3af;font-size:0.85rem">Input Sample</label><br>
+<select id="sampleSelect" onchange="loadSample()">
+<option value="cat">Image: Cat Recognition</option>
+<option value="sentiment">Text: Sentiment Analysis</option>
+<option value="fraud">Tabular: Fraud Detection</option>
+<option value="medical">Medical: Diagnosis</option>
+</select></div>
+<div><label style="color:#9ca3af;font-size:0.85rem">Architecture</label><br>
+<select id="archSelect" onchange="buildNetwork()">
+<option value="cnn">CNN (Conv Layers)</option>
+<option value="ffn">FFN (Feed Forward)</option>
+<option value="rnn">RNN (Recurrent)</option>
+<option value="transformer">Transformer</option>
+</select></div>
+<div><label style="color:#9ca3af;font-size:0.85rem">Speed: <span id="speedVal">1x</span></label><br>
+<input type="range" id="speedRange" min="1" max="5" value="1" style="background:#1e1e4e" oninput="document.getElementById('speedVal').textContent=this.value+'x'">
+</div>
+<button class="btn btn-primary" onclick="runInference()">▶ Run Inference</button>
+<button class="btn btn-secondary" onclick="resetViz()" style="background:#1e1e4e;color:#9ca3af;border:1px solid #4a4a8e">↺ Reset</button>
+<button class="btn btn-secondary" onclick="exportReport()" style="background:#1e1e4e;color:#9ca3af;border:1px solid #4a4a8e">📥 Export Report</button>
+</div>
+<div class="grid">
+<div class="panel">
+<h2>🔥 Neuron Activation Heatmap</h2>
+<div class="tab-bar">
+<button class="tab active" onclick="switchHeatmap('layer1',this)">Layer 1</button>
+<button class="tab" onclick="switchHeatmap('layer2',this)">Layer 2</button>
+<button class="tab" onclick="switchHeatmap('layer3',this)">Layer 3</button>
+<button class="tab" onclick="switchHeatmap('output',this)">Output</button>
+</div>
+<canvas id="heatmapCanvas" height="220"></canvas>
+<p style="font-size:0.72rem;color:#666;margin-top:8px;text-align:center">Red=High · Blue=Low activation · Each cell = 1 neuron</p>
+</div>
+<div class="panel">
+<h2>🌐 Concept Cluster Map</h2>
+<canvas id="clusterCanvas" height="220"></canvas>
+<div class="concept-grid" id="conceptGrid"></div>
+</div>
+<div class="panel" style="grid-column:span 2">
+<h2>🔗 Hidden Layer Architecture Visualization</h2>
+<div class="layer-viz" id="layerViz"></div>
+</div>
+<div class="panel">
+<h2>📊 Prediction Probabilities</h2>
+<div id="predBars"></div>
+</div>
+<div class="panel">
+<h2>📋 Inference Log</h2>
+<div class="log" id="inferenceLog"><div class="log-entry active">Ready to run inference...</div></div>
+</div>
+</div>
+</div>
+<script>
+const SAMPLES={cat:{label:'Cat Image Classification',classes:['Cat','Dog','Bird','Fish','Horse'],input:'28x28 pixel image'},sentiment:{label:'Sentiment Analysis',classes:['Positive','Negative','Neutral','Mixed','Sarcastic'],input:'Tokenized text'},fraud:{label:'Fraud Detection',classes:['Legitimate','Fraud','Suspicious','Review','Auto-approve'],input:'24 transaction features'},medical:{label:'Medical Diagnosis',classes:['Normal','Pneumonia','COVID-19','Tuberculosis','Other'],input:'Chest X-ray features'}};
+const ARCHS={cnn:['Input(784)','Conv1(32)','Conv2(64)','Pool(32)','FC(128)','Output'],ffn:['Input(512)','H1(256)','H2(128)','H3(64)','H4(32)','Output'],rnn:['Input(100)','Embed(128)','LSTM1(256)','LSTM2(128)','Dense(64)','Output'],transformer:['Input(512)','MHA(8h)','FF(2048)','Norm(512)','Proj(256)','Output']};
+let currentLayer='layer1',concepts=[],inferenceRunning=false,stepCount=0,heatmapData={};
+function rnd(a,b){return Math.random()*(b-a)+a;}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function heatColor(v){const r=Math.round(clamp(v*2,0,1)*255);const b=Math.round(clamp(2-v*2,0,1)*255);const g=Math.round(Math.max(0,1-Math.abs(v*2-1))*180);return 'rgb('+r+','+g+','+b+')';}
+function buildNetwork(){
+const arch=document.getElementById('archSelect').value;
+const layers=ARCHS[arch];
+const viz=document.getElementById('layerViz');
+viz.innerHTML='';
+layers.forEach((name,i)=>{
+const nCount=Math.min(8,parseInt(name.match(/\d+/)?.[0]||'5'));
+const layer=document.createElement('div');layer.className='layer';
+const col=document.createElement('div');col.className='neuron-col';
+for(let n=0;n<nCount;n++){const neuron=document.createElement('div');neuron.className='neuron';const val=rnd(0,1);neuron.style.background=heatColor(val);neuron.id='n_'+i+'_'+n;col.appendChild(neuron);}
+const lbl=document.createElement('div');lbl.className='layer-label';lbl.style.fontSize='0.7rem';lbl.style.color='#888';lbl.style.textAlign='center';lbl.textContent=name;
+layer.appendChild(col);layer.appendChild(lbl);viz.appendChild(layer);
+if(i<layers.length-1){const conn=document.createElement('div');conn.className='connector';viz.appendChild(conn);}
+});
+document.getElementById('stat-layers').textContent=layers.length-2;
+generateHeatmapData();
+}
+function generateHeatmapData(){['layer1','layer2','layer3','output'].forEach(l=>{heatmapData[l]=Array.from({length:196},()=>rnd(0,1));});}
+function drawHeatmap(layerKey){
+const canvas=document.getElementById('heatmapCanvas');
+const ctx=canvas.getContext('2d');
+const data=heatmapData[layerKey]||heatmapData['layer1'];
+const w=canvas.parentElement.offsetWidth-40;
+canvas.width=w;canvas.height=220;
+const cols=14,rows=14,cw=w/cols,ch=220/rows;
+data.forEach((v,i)=>{const x=(i%cols)*cw,y=Math.floor(i/cols)*ch;ctx.fillStyle=heatColor(v);ctx.fillRect(x+1,y+1,cw-2,ch-2);});
+const grad=ctx.createLinearGradient(0,0,w,0);grad.addColorStop(0,'rgb(0,0,255)');grad.addColorStop(0.5,'rgb(0,180,0)');grad.addColorStop(1,'rgb(255,0,0)');ctx.fillStyle=grad;ctx.fillRect(0,215,w,5);
+}
+function drawClusters(){
+const canvas=document.getElementById('clusterCanvas');
+const ctx=canvas.getContext('2d');
+const w=canvas.parentElement.offsetWidth-40;
+canvas.width=w;canvas.height=220;
+ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,w,220);
+const sample=SAMPLES[document.getElementById('sampleSelect').value];
+concepts=sample.classes.map((c,i)=>({x:rnd(50,w-50),y:rnd(30,190),label:c,r:rnd(18,35),color:['#7c3aed','#06b6d4','#10b981','#f59e0b','#ef4444'][i],strength:rnd(0.3,1.0)}));
+for(let i=0;i<concepts.length;i++)for(let j=i+1;j<concepts.length;j++){const dx=concepts[i].x-concepts[j].x,dy=concepts[i].y-concepts[j].y,d=Math.sqrt(dx*dx+dy*dy);if(d<180){ctx.beginPath();ctx.moveTo(concepts[i].x,concepts[i].y);ctx.lineTo(concepts[j].x,concepts[j].y);ctx.strokeStyle='rgba(124,58,237,'+(0.4*(1-d/180))+')';ctx.lineWidth=1;ctx.stroke();}}
+concepts.forEach(c=>{const grd=ctx.createRadialGradient(c.x,c.y,0,c.x,c.y,c.r);grd.addColorStop(0,c.color+'cc');grd.addColorStop(1,c.color+'22');ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fillStyle=grd;ctx.fill();ctx.strokeStyle=c.color;ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#fff';ctx.font='bold 9px sans-serif';ctx.textAlign='center';ctx.fillText(c.label,c.x,c.y+3);});
+const grid=document.getElementById('conceptGrid');grid.innerHTML='';
+concepts.forEach(c=>{const chip=document.createElement('div');chip.className='concept-chip';chip.style.borderColor=c.color;chip.style.color=c.color;chip.style.background=c.color+'18';chip.textContent=c.label+' '+Math.round(c.strength*100)+'%';grid.appendChild(chip);});
+}
+function switchHeatmap(layer,btn){currentLayer=layer;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');drawHeatmap(layer);}
+function loadSample(){drawClusters();updatePredBars();}
+function updatePredBars(){
+const sample=SAMPLES[document.getElementById('sampleSelect').value];
+const bars=document.getElementById('predBars');
+let probs=sample.classes.map(()=>Math.random());
+const sum=probs.reduce((a,b)=>a+b,0);probs=probs.map(p=>p/sum);
+const maxIdx=probs.indexOf(Math.max(...probs));
+bars.innerHTML='';
+probs.forEach((p,i)=>{const div=document.createElement('div');div.className='prediction-bar';const pct=Math.round(p*100);const color=i===maxIdx?'#7c3aed':'#06b6d4';div.innerHTML='<div class="bar-label"><span>'+sample.classes[i]+'</span><span>'+pct+'%</span></div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+color+'">'+sample.classes[i]+'</div></div>';bars.appendChild(div);});
+const conf=Math.round(Math.max(...probs)*100);document.getElementById('stat-conf').textContent=conf+'%';
+return maxIdx;
+}
+function log(msg,active){const el=document.getElementById('inferenceLog');const div=document.createElement('div');div.className='log-entry'+(active?' active':'');div.textContent='['+new Date().toLocaleTimeString()+'] '+msg;el.insertBefore(div,el.firstChild);if(el.children.length>30)el.removeChild(el.lastChild);}
+function animateNeurons(){const arch=document.getElementById('archSelect').value;const layers=ARCHS[arch];layers.forEach((name,i)=>{const nCount=Math.min(8,parseInt(name.match(/\d+/)?.[0]||'5'));for(let n=0;n<nCount;n++){const el=document.getElementById('n_'+i+'_'+n);if(el){const val=rnd(0,1);el.style.background=heatColor(val);el.style.boxShadow='0 0 '+Math.round(val*8)+'px '+heatColor(val);}}});}
+async function runInference(){
+if(inferenceRunning)return;inferenceRunning=true;stepCount++;document.getElementById('stat-epoch').textContent=stepCount;
+const sample=SAMPLES[document.getElementById('sampleSelect').value];
+const speed=parseInt(document.getElementById('speedRange').value);
+const delay=Math.max(80,500/speed);
+log('Starting inference: '+sample.label,true);log('Input: '+sample.input);
+const arch=ARCHS[document.getElementById('archSelect').value];
+let activeNeurons=0;
+for(let i=0;i<arch.length;i++){log('Processing layer '+(i+1)+': '+arch[i],true);animateNeurons();generateHeatmapData();drawHeatmap(currentLayer);activeNeurons+=Math.round(rnd(10,50));document.getElementById('stat-neurons').textContent=activeNeurons;await new Promise(r=>setTimeout(r,delay));}
+drawClusters();const pred=updatePredBars();log('Prediction: '+sample.classes[pred]+' (top class)',true);
+inferenceRunning=false;
+}
+function resetViz(){stepCount=0;document.getElementById('stat-neurons').textContent='0';document.getElementById('stat-conf').textContent='0%';document.getElementById('stat-epoch').textContent='0';document.getElementById('inferenceLog').innerHTML='<div class="log-entry active">Ready to run inference...</div>';buildNetwork();drawClusters();updatePredBars();}
+function exportReport(){
+const sample=SAMPLES[document.getElementById('sampleSelect').value];
+const arch=document.getElementById('archSelect').value;
+const report='=== AI THOUGHT VISUALIZATION REPORT ===\nGenerated: '+new Date().toLocaleString()+'\nSample: '+sample.label+'\nArchitecture: '+arch.toUpperCase()+'\nInference Steps: '+stepCount+'\nActive Neurons: '+document.getElementById('stat-neurons').textContent+'\nConfidence: '+document.getElementById('stat-conf').textContent+'\n\nLAYER ARCHITECTURE:\n'+ARCHS[arch].join(' -> ')+'\n\nCONCEPT CLUSTERS:\n'+concepts.map(c=>c.label+': '+Math.round(c.strength*100)+'% activation').join('\n');
+const blob=new Blob([report],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='neural_viz_report.txt';a.click();
+}
+buildNetwork();drawClusters();updatePredBars();
+window.addEventListener('resize',()=>{drawHeatmap(currentLayer);drawClusters();});
+</script>
+</body>
+</html>
